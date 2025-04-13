@@ -2,6 +2,7 @@ package main
 
 import (
 	"math/rand"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -152,98 +153,117 @@ func getNextPos(pos Pos, width, height int) Pos {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	width := 2
-	height := 2
+	width := 7
+	height := 7
 	var words []string = []string{
-		"af",
-		"ag",
-		"fd",
-		"gd",
-		"fa",
-		"ga",
-		"da",
-		"dg",
-		"ad",
+		"dier",
+		"deer",
+		"hallo",
+		"logisch",
+		"test",
+		"abravi",
+		"larie",
+		"bob",
+		"kaasje",
+		"slapen",
+		"kruidt",
+		"eva",
 	}
 
-	rand.Shuffle(len(words), func(i, j int) {
-		words[i], words[j] = words[j], words[i]
+	sort.Slice(words, func(i, j int) bool {
+		return len(words[i]) > len(words[j])
 	})
 
-	startingPos := map[string]Pos{}
-	for i := range words {
-		startingPos[words[i]] = Pos{X: rand.Intn(width), Y: rand.Intn(height), Dir: directions[rand.Intn(len(directions))]}
-	}
-	currentPos := map[string]Pos{}
-	for i := range words {
-		currentPos[words[i]] = startingPos[words[i]]
-	}
+	maxTries := 100
+	maxDepth := 10_000_000
+	currTry := 0
+	currDepth := 0
 
-	solution := []Solution{}
-	grid := NewGrid(width, height, solution)
-	currentWord := 0
+	for currTry < maxTries {
+		currTry++
+		currDepth = 0
 
-	// DFS to place words in the grid
-	for {
-		word := words[currentWord]
-		pos := getNextPos(currentPos[word], width, height)
-		currentPos[word] = pos
+		startingPos := map[string]Pos{}
+		for i := range words {
+			startingPos[words[i]] = Pos{X: rand.Intn(width), Y: rand.Intn(height), Dir: directions[rand.Intn(len(directions))]}
+		}
+		currentPos := map[string]Pos{}
+		for i := range words {
+			currentPos[words[i]] = startingPos[words[i]]
+		}
 
-		print("\nPlacing: " + word + " at " + pos.String())
+		solution := []Solution{}
+		grid := NewGrid(width, height, solution)
+		currentWord := 0
 
-		if pos.equal(startingPos[word]) {
-			println("\nBacktracking: " + word + " at " + pos.String())
-			if currentWord == 0 {
+		// DFS to place words in the grid
+		for {
+			currDepth++
+			if currDepth > maxDepth {
 				break
 			}
-			currentWord--
-			solution = solution[:len(solution)-1]
-			grid = NewGrid(width, height, solution)
-			startingPos[word] = Pos{X: rand.Intn(width), Y: rand.Intn(height), Dir: directions[rand.Intn(len(directions))]}
-			currentPos[word] = startingPos[word]
+			word := words[currentWord]
+			pos := getNextPos(currentPos[word], width, height)
+			currentPos[word] = pos
+
+			// print("\nPlacing: " + word + " at " + pos.String())
+
+			if pos.equal(startingPos[word]) {
+				// println("\nBacktracking: " + word + " at " + pos.String())
+				if currentWord == 0 {
+					break
+				}
+				currentWord--
+				solution = solution[:len(solution)-1]
+				grid = NewGrid(width, height, solution)
+				startingPos[word] = Pos{X: rand.Intn(width), Y: rand.Intn(height), Dir: directions[rand.Intn(len(directions))]}
+				currentPos[word] = startingPos[word]
+				continue
+			}
+
+			// check if word fits in the grid
+			fit := false
+			if pos.X+(len(word)-1)*pos.Dir[0] >= 0 && pos.X+len(word)*pos.Dir[0] <= width &&
+				pos.Y+(len(word)-1)*pos.Dir[1] >= 0 && pos.Y+len(word)*pos.Dir[1] <= height {
+				fit = true
+				for i := 0; i < len(word); i++ {
+					x := pos.X + i*pos.Dir[0]
+					y := pos.Y + i*pos.Dir[1]
+					if grid.Cells[y][x] != '.' && grid.Cells[y][x] != rune(word[i]) {
+						fit = false
+						break
+					}
+				}
+			}
+
+			if fit {
+				solution = append(solution, Solution{Word: word, Pos: pos})
+				grid = NewGrid(width, height, solution)
+				// println(grid.String())
+				currentWord++
+			}
+
+			if currentWord >= len(words) {
+				break
+			}
+		}
+
+		if len(solution) < len(words) {
+			println("Next try")
 			continue
 		}
 
-		// check if word fits in the grid
-		fit := false
-		if pos.X+(len(word)-1)*pos.Dir[0] >= 0 && pos.X+len(word)*pos.Dir[0] <= width &&
-			pos.Y+(len(word)-1)*pos.Dir[1] >= 0 && pos.Y+len(word)*pos.Dir[1] <= height {
-			fit = true
-			for i := 0; i < len(word); i++ {
-				x := pos.X + i*pos.Dir[0]
-				y := pos.Y + i*pos.Dir[1]
-				if grid.Cells[y][x] != '.' && grid.Cells[y][x] != rune(word[i]) {
-					fit = false
-					print(" <-- word")
-					break
-				}
-			}
-		}
+		// print the grid
+		println("Grid:")
+		println(grid.String())
 
-		if fit {
-			solution = append(solution, Solution{Word: word, Pos: pos})
-			grid = NewGrid(width, height, solution)
-			println("\n" + grid.String())
-			currentWord++
+		// print the solution
+		println("Solution:")
+		for _, s := range solution {
+			println(s.String())
 		}
-
-		if currentWord >= len(words) {
-			break
-		}
-	}
-
-	if len(solution) == 0 {
-		println("No solution found")
 		return
 	}
 
-	// print the grid
-	println("Grid:")
-	println(grid.String())
-
-	// print the solution
-	println("Solution:")
-	for _, s := range solution {
-		println(s.String())
-	}
+	println("No solution found")
 }

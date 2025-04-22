@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -51,7 +52,7 @@ func NewGrid(w, h int, solutions []Solution) *Grid {
 			g.Cells[y][x] = '.' // placeholder
 		}
 	}
-	// fill words in the grid\
+	// fill words in the grid
 	for _, s := range solutions {
 		for i := 0; i < len(s.Word); i++ {
 			x := s.Pos.X + i*s.Pos.Dir[0]
@@ -70,6 +71,11 @@ func (s *Solution) String() string {
 
 func (p *Pos) String() string {
 	return "Pos(" + strconv.Itoa(p.X) + ", " + strconv.Itoa(p.Y) + ") with direction " + dirToText(p.Dir)
+}
+
+func isDirDiagonal(dir Dir) bool {
+	return (dir[0] == 1 && dir[1] == 1) || (dir[0] == -1 && dir[1] == -1) ||
+		(dir[0] == 1 && dir[1] == -1) || (dir[0] == -1 && dir[1] == 1)
 }
 
 func dirToText(dir Dir) string {
@@ -109,7 +115,7 @@ func (g *Grid) String() string {
 func getNextPos(pos Pos, width, height int) Pos {
 	//first try a different direction
 	currentDir := pos.Dir
-	newPos := pos
+	newPos := Pos{pos.X, pos.Y, pos.Dir}
 	// if current dir is upright
 	if currentDir[0] == -1 && currentDir[1] == 1 {
 		newPos.Dir = [2]int{0, 1} // Down
@@ -150,31 +156,73 @@ func getNextPos(pos Pos, width, height int) Pos {
 	return newPos
 }
 
-func main() {
-	rand.Seed(time.Now().UnixNano())
+func isPalindrome(word string) bool {
+	for i := 0; i < len(word)/2; i++ {
+		if word[i] != word[len(word)-1-i] {
+			return false
+		}
+	}
+	return true
+}
 
-	width := 7
-	height := 7
-	var words []string = []string{
-		"dier",
-		"deer",
-		"hallo",
-		"logisch",
-		"test",
-		"abravi",
-		"larie",
-		"bob",
-		"kaasje",
-		"slapen",
-		"kruidt",
-		"eva",
+func validateSolution(width, height int, grid *Grid, solution []Solution) bool {
+	for _, s := range solution {
+		nextPos := s.Pos
+		isPalindrome := isPalindrome(s.Word)
+
+		for {
+			nextPos = getNextPos(nextPos, width, height)
+			if nextPos.equal(s.Pos) {
+				break
+			}
+
+			if nextPos.X+(len(s.Word)-1)*nextPos.Dir[0] >= 0 && nextPos.X+len(s.Word)*nextPos.Dir[0] <= width &&
+				nextPos.Y+(len(s.Word)-1)*nextPos.Dir[1] >= 0 && nextPos.Y+len(s.Word)*nextPos.Dir[1] <= height {
+				wordIsEqual := true
+				for i := 0; i < len(s.Word); i++ {
+					x := nextPos.X + i*nextPos.Dir[0]
+					y := nextPos.Y + i*nextPos.Dir[1]
+					if grid.Cells[y][x] != '.' && grid.Cells[y][x] != rune(s.Word[i]) {
+						wordIsEqual = false
+						break
+					}
+				}
+				if wordIsEqual && !(isPalindrome && nextPos.X+(len(s.Word)-1)*nextPos.Dir[0] == s.Pos.X &&
+					nextPos.Y+(len(s.Word)-1)*nextPos.Dir[1] == s.Pos.Y) {
+					return false
+				}
+			}
+		}
 	}
 
+	return true
+}
+
+func generate(input []string, width, height int) (string, []Solution) {
+	rand.Seed(time.Now().UnixNano())
+
+	// copy words
+	words := make([]string, len(input))
+	copy(words, input)
+
+	// sanitize words
+	for i := range words {
+		words[i] = strings.ToUpper(words[i])
+		// remove spaces and special characters
+		words[i] = strings.Map(func(r rune) rune {
+			if r >= 'A' && r <= 'Z' {
+				return r
+			}
+			return -1
+		}, words[i])
+	}
+
+	// sort words
 	sort.Slice(words, func(i, j int) bool {
 		return len(words[i]) > len(words[j])
 	})
 
-	maxTries := 100
+	maxTries := 1000
 	maxDepth := 10_000_000
 	currTry := 0
 	currDepth := 0
@@ -185,7 +233,7 @@ func main() {
 
 		startingPos := map[string]Pos{}
 		for i := range words {
-			startingPos[words[i]] = Pos{X: rand.Intn(width), Y: rand.Intn(height), Dir: directions[rand.Intn(len(directions))]}
+			startingPos[words[i]] = Pos{X: rand.Intn(width), Y: rand.Intn(height), Dir: directions[2]}
 		}
 		currentPos := map[string]Pos{}
 		for i := range words {
@@ -206,10 +254,7 @@ func main() {
 			pos := getNextPos(currentPos[word], width, height)
 			currentPos[word] = pos
 
-			// print("\nPlacing: " + word + " at " + pos.String())
-
 			if pos.equal(startingPos[word]) {
-				// println("\nBacktracking: " + word + " at " + pos.String())
 				if currentWord == 0 {
 					break
 				}
@@ -239,7 +284,6 @@ func main() {
 			if fit {
 				solution = append(solution, Solution{Word: word, Pos: pos})
 				grid = NewGrid(width, height, solution)
-				// println(grid.String())
 				currentWord++
 			}
 
@@ -248,22 +292,104 @@ func main() {
 			}
 		}
 
-		if len(solution) < len(words) {
+		// check if at least one third of solution words is diagonal
+		diagonalCount := 0
+		for _, s := range solution {
+			if isDirDiagonal(s.Pos.Dir) {
+				diagonalCount++
+			}
+		}
+		if diagonalCount < len(solution)/3 {
+			continue
+		}
+
+		grid = fillRandom(solution, width, height)
+
+		if len(solution) < len(words) || grid == nil {
 			println("Next try")
 			continue
 		}
 
-		// print the grid
-		println("Grid:")
-		println(grid.String())
-
-		// print the solution
-		println("Solution:")
-		for _, s := range solution {
-			println(s.String())
-		}
-		return
+		return grid.String(), solution
 	}
 
 	println("No solution found")
+	return "", nil
+}
+
+func fillRandom(solution []Solution, width, height int) *Grid {
+	grid := NewGrid(width, height, solution)
+	maxFill := 1000
+	currFill := 0
+	for currFill < maxFill {
+		currFill++
+		// fill the grid with random letters
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
+				if grid.Cells[y][x] == '.' {
+					grid.Cells[y][x] = rune('A' + rand.Intn(26))
+				}
+			}
+		}
+
+		if validateSolution(width, height, grid, solution) {
+			return grid
+		}
+
+		grid = NewGrid(width, height, solution)
+	}
+	return nil
+}
+
+func main() {
+	width := 14
+	height := 14
+	originalWords := []string{
+		"ALI",
+		"BRIDGE",
+		"CHOCOLADE",
+		"DENNENOORD",
+		"EDZE",
+		"FELIEN",
+		"GULHEID",
+		"HOORNSESTRAAT",
+		"INTERCITY",
+		"JAN",
+		"KOKEN",
+		"LEZEN",
+		"MIRTE",
+		"NEUTJE SCHAITEN",
+		"OMA",
+		"PAASWEEKEND",
+		"QQ",
+		"REIZEN",
+		"SINTERKLAAS",
+		"TUINIEREN",
+		"UITBUNDIG ETEN",
+		"VAN HAASTEREN",
+		"WANDELEN",
+		"NIX",
+		"YIN YANG",
+		"ZINGEN",
+	}
+
+	grid, solution := generate(originalWords, width, height)
+
+	// print the grid
+	println("Grid:")
+	println(grid)
+	println()
+
+	// print the original words
+	println("Words:")
+	for _, w := range originalWords {
+		println(w)
+	}
+	println()
+
+	// print the solution
+	println("Solution:")
+	for _, s := range solution {
+		println(s.String())
+	}
 }

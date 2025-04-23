@@ -1,0 +1,16 @@
+/* You can add global styles to this file, and also import other style files */
+@import 'tailwindcss';
+
+body {
+    position: relative;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.char {
+    position: absolute;
+    display: inline-block;
+    user-select: none;
+    z-index: -1;
+}

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall/js"
 	"time"
 )
 
@@ -317,17 +318,53 @@ func generate(input []string, width, height int) (string, []Solution) {
 	return "", nil
 }
 
+func generateJS(this js.Value, p []js.Value) interface{} {
+	words := p[0].String()
+	width := p[1].Int()
+	height := p[2].Int()
+
+	words = strings.ReplaceAll(words, "\n", ",")
+	wordsList := strings.Split(words, ",")
+	grid, _ := generate(wordsList, width, height)
+
+	return map[string]interface{}{
+		"grid": grid,
+	}
+}
+
 func fillRandom(solution []Solution, width, height int) *Grid {
 	grid := NewGrid(width, height, solution)
 	maxFill := 1000
 	currFill := 0
+
+	charWeights := map[rune]int{
+		'A': 8, 'B': 2, 'C': 3, 'D': 4, 'E': 13, 'F': 2, 'G': 2,
+		'H': 6, 'I': 7, 'J': 1, 'K': 1, 'L': 4, 'M': 2, 'N': 7,
+		'O': 8, 'P': 2, 'Q': 1, 'R': 6, 'S': 6, 'T': 9, 'U': 3,
+		'V': 1, 'W': 2, 'X': 1, 'Y': 2, 'Z': 1,
+	}
+
+	for _, s := range solution {
+		for i := 0; i < len(s.Word); i++ {
+			charWeights[rune(s.Word[i])]++
+		}
+	}
+
+	// Create a weighted pool of characters
+	weightedPool := []rune{}
+	for char, weight := range charWeights {
+		for i := 0; i < weight; i++ {
+			weightedPool = append(weightedPool, char)
+		}
+	}
+
 	for currFill < maxFill {
 		currFill++
 		// fill the grid with random letters
 		for y := 0; y < height; y++ {
 			for x := 0; x < width; x++ {
 				if grid.Cells[y][x] == '.' {
-					grid.Cells[y][x] = rune('A' + rand.Intn(26))
+					grid.Cells[y][x] = weightedPool[rand.Intn(len(weightedPool))]
 				}
 			}
 		}
@@ -342,54 +379,7 @@ func fillRandom(solution []Solution, width, height int) *Grid {
 }
 
 func main() {
-	width := 14
-	height := 14
-	originalWords := []string{
-		"ALI",
-		"BRIDGE",
-		"CHOCOLADE",
-		"DENNENOORD",
-		"EDZE",
-		"FELIEN",
-		"GULHEID",
-		"HOORNSESTRAAT",
-		"INTERCITY",
-		"JAN",
-		"KOKEN",
-		"LEZEN",
-		"MIRTE",
-		"NEUTJE SCHAITEN",
-		"OMA",
-		"PAASWEEKEND",
-		"QQ",
-		"REIZEN",
-		"SINTERKLAAS",
-		"TUINIEREN",
-		"UITBUNDIG ETEN",
-		"VAN HAASTEREN",
-		"WANDELEN",
-		"NIX",
-		"YIN YANG",
-		"ZINGEN",
-	}
-
-	grid, solution := generate(originalWords, width, height)
-
-	// print the grid
-	println("Grid:")
-	println(grid)
-	println()
-
-	// print the original words
-	println("Words:")
-	for _, w := range originalWords {
-		println(w)
-	}
-	println()
-
-	// print the solution
-	println("Solution:")
-	for _, s := range solution {
-		println(s.String())
-	}
+	c := make(chan struct{})
+	js.Global().Set("generate", js.FuncOf(generateJS))
+	<-c
 }

@@ -1,22 +1,20 @@
 {
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
   // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch file",
-      "type": "go",
+      "name": "ng serve",
+      "type": "chrome",
       "request": "launch",
-      "mode": "debug",
-      "program": "${file}"
+      "preLaunchTask": "npm: start",
+      "url": "http://localhost:4200/"
     },
     {
-      "name": "Launch Package",
-      "type": "go",
+      "name": "ng test",
+      "type": "chrome",
       "request": "launch",
-      "mode": "auto",
-      "program": "${fileDirname}"
+      "preLaunchTask": "npm: test",
+      "url": "http://localhost:9876/debug.html"
     }
   ]
 }

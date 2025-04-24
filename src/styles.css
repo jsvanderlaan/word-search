@@ -1,5 +1,24 @@
 /* You can add global styles to this file, and also import other style files */
+@font-face {
+    font-family: 'grid';
+    src: url('/assets/fonts/grid.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'title';
+    src: url('/assets/fonts/title.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
 @import 'tailwindcss';
+
+@theme {
+    --font-title: 'title', sans-serif;
+    --font-grid: 'grid', monospace;
+}
 
 body {
     position: relative;

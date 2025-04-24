@@ -9,7 +9,7 @@
             type="text"
             [(ngModel)]="words"
             placeholder="e.g. apple, banana, cherry"
-            class="w-full h-64 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 bg-white"
+            class="w-full h-64 font-grid px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 bg-white"
             [ngClass]="{ 'border-red-500': error() && !words }"
         ></textarea>
     </div>
@@ -37,6 +37,18 @@
             />
         </div>
     </div>
+
+    <!-- title input -->
+    <div class="w-full max-w-lg mt-4">
+        <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
+        <input
+            id="title"
+            type="text"
+            [(ngModel)]="title"
+            placeholder="(optional)"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 bg-white"
+        />
+    </div>
     <!-- Generate Button -->
     <button
         (click)="generate()"
@@ -57,14 +69,19 @@
     } @else if (grid()) {
         <div class="mt-4 w-full max-w-lg">
             <label for="result" class="block text-sm font-medium text-gray-700">Result</label>
-            <div id="result" class="bg-white p-4 rounded-lg shadow-md text-gray-800 overflow-auto mx-auto">
+            <div id="result" class="bg-white p-4 rounded-lg shadow-md text-gray-800 overflow-auto mx-auto flex flex-col">
+                @if (title) {
+                    <div class="text-center mb-4 font-title">
+                        <h2 class="text-3xl font-bold">{{ title }}</h2>
+                    </div>
+                }
                 <!-- grid as table -->
-                <table class="border-collapse">
+                <table class="border-collapse font-grid mx-auto">
                     <tbody>
                         @for (row of grid(); track row.join(',')) {
                             <tr>
                                 @for (cell of row; track $index) {
-                                    <td class="border border-gray-300 w-8 h-8 min-h-8 min-w-8 text-center font-bold">
+                                    <td class="border-0 border-gray-300 w-8 h-8 min-h-8 min-w-8 text-center">
                                         {{ cell }}
                                     </td>
                                 }
@@ -74,8 +91,8 @@
                 </table>
 
                 <div class="word-list mt-4">
-                    <label for="word-list" class="block text-sm font-medium text-gray-700">Word List</label>
-                    <ul id="word-list">
+                    <!-- <label for="word-list" class="block text-sm font-medium text-gray-700">Word List</label> -->
+                    <ul class="font-grid columns-3 gap-4">
                         @for (word of gridWords(); track word) {
                             <li>{{ word }}</li>
                         }

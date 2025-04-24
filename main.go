@@ -183,7 +183,7 @@ func validateSolution(width, height int, grid *Grid, solution []Solution) bool {
 				for i := 0; i < len(s.Word); i++ {
 					x := nextPos.X + i*nextPos.Dir[0]
 					y := nextPos.Y + i*nextPos.Dir[1]
-					if grid.Cells[y][x] != '.' && grid.Cells[y][x] != rune(s.Word[i]) {
+					if grid.Cells[y][x] != rune(s.Word[i]) {
 						wordIsEqual = false
 						break
 					}
@@ -199,32 +199,145 @@ func validateSolution(width, height int, grid *Grid, solution []Solution) bool {
 	return true
 }
 
-func generate(input []string, width, height int) (string, []Solution) {
-	rand.Seed(time.Now().UnixNano())
+func prepareWords(words []string) []string {
+	c := make([]string, len(words))
+	copy(c, words)
 
-	// copy words
-	words := make([]string, len(input))
-	copy(words, input)
-
-	// sanitize words
-	for i := range words {
-		words[i] = strings.ToUpper(words[i])
+	for i := range c {
+		c[i] = strings.ToUpper(c[i])
 		// remove spaces and special characters
-		words[i] = strings.Map(func(r rune) rune {
+		c[i] = strings.Map(func(r rune) rune {
 			if r >= 'A' && r <= 'Z' {
 				return r
 			}
 			return -1
-		}, words[i])
+		}, c[i])
 	}
 
 	// sort words
-	sort.Slice(words, func(i, j int) bool {
-		return len(words[i]) > len(words[j])
+	sort.Slice(c, func(i, j int) bool {
+		return len(c[i]) > len(c[j])
 	})
 
-	maxTries := 1000
-	maxDepth := 10_000_000
+	return c
+}
+
+func calculateFitAndScore(grid *Grid, word string, pos Pos) (bool, int) {
+	fit := true
+	score := 1
+
+	for i := 0; i < len(word); i++ {
+		x := pos.X + i*pos.Dir[0]
+		y := pos.Y + i*pos.Dir[1]
+
+		// Check if the position is within bounds
+		if x < 0 || x >= grid.Width || y < 0 || y >= grid.Height {
+			return false, 0
+		}
+
+		// Check if the cell is empty or matches the current letter
+		if grid.Cells[y][x] != '.' && grid.Cells[y][x] != rune(word[i]) {
+			return false, 0
+		}
+
+		// Increase score for overlaps
+		if grid.Cells[y][x] == rune(word[i]) {
+			score += 5 // Overlap bonus
+		}
+	}
+
+	// Increase score for diagonal directions
+	if isDirDiagonal(pos.Dir) {
+		score += 5 // Diagonal bonus
+	}
+
+	return fit, score
+}
+
+func getBestPosition(grid *Grid, word string) (Pos, bool) {
+	weightedPositions := []Pos{}
+	otherPositions := []Pos{}
+	bestScore := 0
+
+	for _, dir := range directions {
+		for y := 0; y < grid.Height; y++ {
+			for x := 0; x < grid.Width; x++ {
+				pos := Pos{X: x, Y: y, Dir: dir}
+				fit, score := calculateFitAndScore(grid, word, pos)
+				if fit && score > 0 {
+					if score > bestScore {
+						bestScore = score
+					}
+					if score > 1 {
+						for i := 0; i < score; i++ {
+							weightedPositions = append(weightedPositions, pos)
+						}
+					} else {
+						otherPositions = append(otherPositions, pos)
+					}
+				}
+			}
+		}
+	}
+
+	if len(weightedPositions) == 0 && len(otherPositions) == 0 {
+		return Pos{}, false
+	}
+	if len(weightedPositions) == 0 {
+		weightedPositions = otherPositions
+	}
+
+	randomPosition := weightedPositions[rand.Intn(len(weightedPositions))]
+
+	return randomPosition, true
+}
+
+func generate(input []string, width, height int) (string, []Solution) {
+	rand.Seed(time.Now().UnixNano())
+
+	maxTries := 10000
+	currTry := 0
+
+	for currTry < maxTries {
+		currTry++
+
+		words := prepareWords(input)
+		solution := []Solution{}
+		grid := NewGrid(width, height, solution)
+		for i := 0; i < len(words); i++ {
+			word := words[i]
+			if len(word) > width && len(word) > height {
+				return "", nil
+			}
+			pos, fit := getBestPosition(grid, word)
+			if !fit {
+				break
+			}
+			solution = append(solution, Solution{Word: word, Pos: pos})
+			grid = NewGrid(width, height, solution)
+		}
+
+		if len(solution) < len(words) {
+			println("Next try")
+			continue
+		}
+
+		grid = fillRandom(solution, width, height)
+
+		return grid.String(), solution
+	}
+
+	return "", nil
+
+}
+
+func generate2(input []string, width, height int) (string, []Solution) {
+	rand.Seed(time.Now().UnixNano())
+
+	words := prepareWords(input)
+
+	maxTries := 100
+	maxDepth := 50_000_000
 	currTry := 0
 	currDepth := 0
 
@@ -293,16 +406,17 @@ func generate(input []string, width, height int) (string, []Solution) {
 			}
 		}
 
-		// check if at least one third of solution words is diagonal
-		diagonalCount := 0
-		for _, s := range solution {
-			if isDirDiagonal(s.Pos.Dir) {
-				diagonalCount++
-			}
-		}
-		if diagonalCount < len(solution)/3 {
-			continue
-		}
+		// check if words are diagonal
+		// diagonalCount := 0
+		// for _, s := range solution {
+		// 	if isDirDiagonal(s.Pos.Dir) {
+		// 		diagonalCount++
+		// 	}
+		// }
+		// if diagonalCount < len(solution)/5 {
+		// 	println("Not enough diagonal words")
+		// 	continue
+		// }
 
 		grid = fillRandom(solution, width, height)
 
@@ -334,7 +448,7 @@ func generateJS(this js.Value, p []js.Value) interface{} {
 
 func fillRandom(solution []Solution, width, height int) *Grid {
 	grid := NewGrid(width, height, solution)
-	maxFill := 1000
+	maxFill := 10
 	currFill := 0
 
 	charWeights := map[rune]int{
@@ -364,7 +478,23 @@ func fillRandom(solution []Solution, width, height int) *Grid {
 		for y := 0; y < height; y++ {
 			for x := 0; x < width; x++ {
 				if grid.Cells[y][x] == '.' {
-					grid.Cells[y][x] = weightedPool[rand.Intn(len(weightedPool))]
+					copiedWeightedPool := make([]rune, len(weightedPool))
+					copy(copiedWeightedPool, weightedPool)
+
+					maxRandCellTrys := 26
+					for i := 0; i < maxRandCellTrys; i++ {
+						char := copiedWeightedPool[rand.Intn(len(copiedWeightedPool))]
+						grid.Cells[y][x] = char
+						if validateSolution(width, height, grid, solution) {
+							break
+						}
+						grid.Cells[y][x] = '.' // reset cell if not valid
+						for j := len(copiedWeightedPool) - 1; j >= 0; j-- {
+							if copiedWeightedPool[j] == char {
+								copiedWeightedPool = append(copiedWeightedPool[:j], copiedWeightedPool[j+1:]...)
+							}
+						}
+					}
 				}
 			}
 		}
@@ -372,6 +502,8 @@ func fillRandom(solution []Solution, width, height int) *Grid {
 		if validateSolution(width, height, grid, solution) {
 			return grid
 		}
+
+		println("Not a valid solution")
 
 		grid = NewGrid(width, height, solution)
 	}

@@ -1,8 +1,8 @@
 import { NgClass } from '@angular/common';
-import { Component, computed, effect, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { generateBackground } from './background';
+import { PdfService } from './pdf.service';
 import { WorkerService } from './worker.service';
 
 @Component({
@@ -12,6 +12,9 @@ import { WorkerService } from './worker.service';
     styleUrl: './app.component.css',
 })
 export class AppComponent {
+    private readonly workerService: WorkerService = inject(WorkerService);
+    private readonly pdfService: PdfService = inject(PdfService);
+
     readonly grid = signal<string[][] | null>(null);
     readonly gridWords = signal<string[]>([]);
     readonly url = computed(() => {
@@ -33,6 +36,11 @@ export class AppComponent {
         params.set('words', words);
         params.set('width', width.toString());
         params.set('height', height.toString());
+
+        if (this.title) {
+            params.set('title', this.title);
+        }
+
         const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
         return url.length < 2000 ? url : null;
     });
@@ -58,11 +66,12 @@ export class AppComponent {
     words: string | null = null;
     width: number | null = null;
     height: number | null = null;
+    title: string | null = null;
 
     readonly loading = signal(false);
     readonly error = signal<string | null>(null);
 
-    constructor(private workerService: WorkerService) {
+    constructor() {
         generateBackground();
 
         // set url on url change
@@ -78,6 +87,10 @@ export class AppComponent {
         const width = urlParams.get('width');
         const height = urlParams.get('height');
         const grid = urlParams.get('grid');
+        const title = urlParams.get('title');
+        if (title) {
+            this.title = decodeURIComponent(title);
+        }
 
         if (words) {
             this.words = decodeURIComponent(words).split(',').join('\n');
@@ -108,7 +121,9 @@ export class AppComponent {
             .split('\n')
             .flatMap(word => word.split(','))
             .map(word => word.trim().toUpperCase())
-            .filter(word => word.length > 0);
+            .filter(word => word.length > 0)
+            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
         if (this.width === null) {
             this.width = wordsArray.map(word => word.trim().length).reduce((a, b) => Math.max(a, b), 0);
         }
@@ -125,7 +140,7 @@ export class AppComponent {
         }
 
         try {
-            const result = await this.workerService.generate(this.words, this.width, this.height);
+            const result = await this.workerService.generate(wordsArray.join(','), this.width, this.height);
             if (!result?.grid) {
                 this.loading.set(false);
                 this.error.set('No result found.. try a bigger grid or less words.');
@@ -175,115 +190,6 @@ export class AppComponent {
         }
         const grid = this.grid()!;
         const words = this.gridWords()!;
-        await this.generateWordSearchPDF(grid, words);
-    }
-
-    async generateWordSearchPDF(grid: string[][], words: string[]) {
-        // sort words alphabetically
-        words.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-        const padding = 80; // Padding around the grid
-        const pdfDoc = await PDFDocument.create();
-        const page = pdfDoc.addPage();
-
-        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-        // Draw the grid
-        const prefferredCellSize = (page.getWidth() - padding * 2) / grid[0].length; // Preferred cell size in points
-        const cellSize = Math.min(Math.max(prefferredCellSize, 8), 32);
-        const cellFontSize = Math.floor(cellSize * 0.5); // Font size relative to cell size
-        const xOffsetToCenter = (page.getWidth() - grid[0].length * cellSize) / 2;
-        const startY = page.getHeight() - padding - cellSize; // Start Y position for the grid
-        grid.forEach((row, rowIndex) => {
-            row.forEach((char, colIndex) => {
-                const x = xOffsetToCenter + colIndex * cellSize;
-                const y = startY - rowIndex * cellSize;
-                const charWidth = font.widthOfTextAtSize(char, cellFontSize);
-                const charHeight = font.heightAtSize(cellFontSize);
-                const centeredX = x + (cellSize - charWidth) / 2;
-                const centeredY = y + (cellSize - charHeight) / 2;
-
-                page.drawText(char, {
-                    x: centeredX,
-                    y: centeredY,
-                    size: cellFontSize,
-                    font,
-                    color: rgb(0, 0, 0),
-                });
-                // page.drawRectangle({
-                //     x,
-                //     y,
-                //     width: cellSize,
-                //     height: cellSize,
-                //     borderColor: rgb(0.75, 0.75, 0.75),
-                //     borderWidth: 1,
-                // });
-            });
-        });
-
-        // Draw the word list
-        let fontSize = Math.min(cellFontSize, 14); // Start with a larger font size for the word list
-
-        while (fontSize > 5) {
-            const lineHeight = font.heightAtSize(fontSize) + 10; // Line height for the word list
-            let wordListStartY = startY - grid.length * cellSize - padding / 2;
-
-            // find the best number of columns to fit the page
-            const maxWidth = page.getWidth() - padding * 2;
-            const columnGap = fontSize; // Gap between columns
-            const maxWordSize = Math.max(...words.map(word => font.widthOfTextAtSize(word, fontSize) + columnGap));
-            const numberOfColumns = Math.floor(maxWidth / maxWordSize);
-            const columnSize = maxWidth / numberOfColumns; // Column size based on the number of columns
-
-            // Check if the words fit in the available space
-            const totalHeight = Math.ceil(words.length / numberOfColumns) * lineHeight;
-
-            if (totalHeight > wordListStartY - padding) {
-                fontSize--;
-                continue;
-            }
-            words.forEach((word, i) => {
-                // Calculate the number of rows per column for even distribution
-                const rowsPerColumn = Array(numberOfColumns).fill(0);
-                for (let j = 0; j < words.length; j++) {
-                    rowsPerColumn[j % numberOfColumns]++;
-                }
-
-                // Determine the column and row for the current word
-                let column = 0;
-                let row = i;
-                for (let j = 0; j < rowsPerColumn.length; j++) {
-                    if (row < rowsPerColumn[j]) {
-                        column = j;
-                        break;
-                    }
-                    row -= rowsPerColumn[j];
-                }
-
-                // Calculate the X and Y positions
-                const wordCenterXOffset = (columnSize - font.widthOfTextAtSize(word, fontSize)) / 2; // Center the word in the column
-                const x = padding + column * columnSize + wordCenterXOffset; // X position based on the column
-                const y = wordListStartY - row * lineHeight; // Y position based on the row
-                page.drawText(word, {
-                    x,
-                    y,
-                    size: fontSize,
-                    font,
-                    color: rgb(0.3, 0.3, 0.3),
-                });
-            });
-
-            const pdfBytes = await pdfDoc.save();
-            this.downloadPDF(pdfBytes, 'word-search.pdf');
-            break;
-        }
-    }
-
-    // Utility function to download the PDF
-    downloadPDF(pdfBytes: Uint8Array<ArrayBufferLike>, filename: string) {
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        link.click();
+        await this.pdfService.generatePdf(grid, words, this.title || 'Word Search', this.url() || '');
     }
 }

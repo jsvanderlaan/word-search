@@ -109,8 +109,9 @@ export class PdfService {
                 }
 
                 // Calculate the X and Y positions
-                const wordCenterXOffset = (columnSize - fontMono.widthOfTextAtSize(word, fontSize)) / 2; // Center the word in the column
-                const x = padding + column * columnSize + wordCenterXOffset; // X position based on the column
+                // const wordCenterXOffset = (columnSize - fontMono.widthOfTextAtSize(word, fontSize)) / 2; // Center the word in the column
+                // const x = padding + column * columnSize + wordCenterXOffset; // X position based on the column
+                const x = padding + column * columnSize; // X position based on the column
                 const y = wordListStartY - row * lineHeight; // Y position based on the row
                 page.drawText(word, {
                     x,

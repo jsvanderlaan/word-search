@@ -1,166 +1,90 @@
-<div class="flex flex-col items-center p-8 overflow-scroll h-screen overflow-x-hidden">
-    <h1 class="text-2xl font-bold text-gray-800 mb-4">Word Search Generator</h1>
+<div class="flex flex-col items-center p-8 overflow-auto h-screen overflow-x-hidden">
+    <h1 class="text-2xl font-grid font-bold text-gray-800 mb-1">word search</h1>
+    <h2 class="text-md font-grid text-indigo-400 mb-4">jurre.dev</h2>
 
-    <!-- Input Field -->
-    <div class="w-full max-w-lg">
-        <label for="words" class="block text-sm font-medium text-gray-700">Words</label>
-        <textarea
-            id="words"
-            type="text"
-            [(ngModel)]="words"
-            placeholder="e.g. apple, banana, cherry"
-            class="w-full h-64 font-grid px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 bg-white"
-            [ngClass]="{ 'border-red-500': error() && !words }"
-        ></textarea>
-    </div>
+    @if (edit()) {
+        <!-- Input Field -->
+        <div class="w-full max-w-lg">
+            <label for="words" class="block text-sm font-medium text-gray-700">Words</label>
+            <textarea
+                id="words"
+                type="text"
+                [(ngModel)]="words"
+                placeholder="e.g. apple, banana, cherry"
+                class="w-full h-64 font-grid px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 bg-white"
+                [ngClass]="{ 'border-red-500': error() && !words }"
+            ></textarea>
+        </div>
 
-    <div class="w-full max-w-lg flex flex-row justify-between mt-4 space-x-2">
-        <div class="w-full">
-            <label for="width" class="block text-sm font-medium text-gray-700">Width</label>
+        <div class="w-full max-w-lg flex flex-row justify-between mt-4 space-x-2">
+            <div class="w-full">
+                <label for="width" class="block text-sm font-medium text-gray-700">Width</label>
+                <input
+                    id="width"
+                    type="number"
+                    [(ngModel)]="width"
+                    placeholder="(optional)"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 bg-white"
+                />
+            </div>
+
+            <div class="w-full">
+                <label for="height" class="block text-sm font-medium text-gray-700">Height</label>
+                <input
+                    id="height"
+                    type="number"
+                    [(ngModel)]="height"
+                    placeholder="(optional)"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 bg-white"
+                />
+            </div>
+        </div>
+
+        <!-- title input -->
+        <div class="w-full max-w-lg mt-4">
+            <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
             <input
-                id="width"
-                type="number"
-                [(ngModel)]="width"
+                id="title"
+                type="text"
+                [(ngModel)]="title"
                 placeholder="(optional)"
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 bg-white"
             />
         </div>
+    }
 
-        <div class="w-full">
-            <label for="height" class="block text-sm font-medium text-gray-700">Height</label>
-            <input
-                id="height"
-                type="number"
-                [(ngModel)]="height"
-                placeholder="(optional)"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 bg-white"
-            />
-        </div>
-    </div>
-
-    <!-- title input -->
-    <div class="w-full max-w-lg mt-4">
-        <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
-        <input
-            id="title"
-            type="text"
-            [(ngModel)]="title"
-            placeholder="(optional)"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 bg-white"
-        />
-    </div>
     <!-- Generate Button -->
-    <button
-        (click)="generate()"
-        class="mt-8 px-6 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-    >
-        Generate Word Search
-    </button>
+    @if (!loading() && edit()) {
+        <button
+            (click)="generate()"
+            class="mt-8 px-6 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        >
+            Generate Word Search
+        </button>
+    }
 
     <!-- Word Search Grid -->
     @if (loading()) {
-        <div class="mt-4 w-full max-w-lg">
-            <p class="text-gray-700">Loading...</p>
+        <div class="mt-4 w-full max-w-lg animate-pulse bg-white rounded h-124">
+            <div class="mt-8 mx-auto w-48 max-w-lg animate-pulse bg-indigo-100 rounded h-12"></div>
+            <div class="mt-4 mx-auto w-72 max-w-lg animate-pulse bg-indigo-100 rounded h-72"></div>
+            <div class="mx-8 mt-4 columns-3 gap-4">
+                @for (i of [].constructor(9); track $index) {
+                    <div class="animate-pulse bg-indigo-100 rounded h-4 mb-2"></div>
+                }
+            </div>
         </div>
+        <button
+            (click)="cancel()"
+            class="mt-4 px-6 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        >
+            Cancel
+        </button>
     } @else if (error()) {
         <div class="mt-4 w-full max-w-lg">
             <p class="text-red-500">{{ error() }}</p>
         </div>
-    } @else if (grid()) {
-        <div class="mt-4 w-full max-w-lg">
-            <label for="result" class="block text-sm font-medium text-gray-700">Result</label>
-            <div id="result" class="bg-white p-4 rounded-lg shadow-md text-gray-800 overflow-auto mx-auto flex flex-col">
-                @if (title) {
-                    <div class="text-center mb-4 font-title">
-                        <h2 class="text-3xl font-bold">{{ title }}</h2>
-                    </div>
-                }
-                <!-- grid as table -->
-                <table class="border-collapse font-grid mx-auto">
-                    <tbody>
-                        @for (row of grid(); track row.join(',')) {
-                            <tr>
-                                @for (cell of row; track $index) {
-                                    <td class="border-0 border-gray-300 w-8 h-8 min-h-8 min-w-8 text-center">
-                                        {{ cell }}
-                                    </td>
-                                }
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-
-                <div class="word-list mt-4">
-                    <!-- <label for="word-list" class="block text-sm font-medium text-gray-700">Word List</label> -->
-                    <ul class="font-grid columns-3 gap-4">
-                        @for (word of gridWords(); track word) {
-                            <li>{{ word }}</li>
-                        }
-                    </ul>
-                </div>
-            </div>
-
-            <div class="w-full justify-center flex space-x-4 mt-4">
-                @if (canShare()) {
-                    <button
-                        (click)="share()"
-                        class="w-12 h-12 bg-indigo-500 hover:bg-indigo-400 rounded-full flex items-center justify-center transition-all shadow-lg"
-                        title="Share"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="w-6 h-6 text-gray-200"
-                            fill="currentColor"
-                            viewBox="0 0 458.624 458.624"
-                            stroke="currentColor"
-                        >
-                            <path
-                                d="M339.588,314.529c-14.215,0-27.456,4.133-38.621,11.239l-112.682-78.67c1.809-6.315,2.798-12.976,2.798-19.871
-                        c0-6.896-0.989-13.557-2.798-19.871l109.64-76.547c11.764,8.356,26.133,13.286,41.662,13.286c39.79,0,72.047-32.257,72.047-72.047
-                        C411.634,32.258,379.378,0,339.588,0c-39.79,0-72.047,32.257-72.047,72.047c0,5.255,0.578,10.373,1.646,15.308l-112.424,78.491
-                        c-10.974-6.759-23.892-10.666-37.727-10.666c-39.79,0-72.047,32.257-72.047,72.047s32.256,72.047,72.047,72.047
-                        c13.834,0,26.753-3.907,37.727-10.666l113.292,79.097c-1.629,6.017-2.514,12.34-2.514,18.872c0,39.79,32.257,72.047,72.047,72.047
-                        c39.79,0,72.047-32.257,72.047-72.047C411.635,346.787,379.378,314.529,339.588,314.529z"
-                            />
-                        </svg>
-                    </button>
-                }
-
-                <button
-                    (click)="download()"
-                    class="w-12 h-12 bg-indigo-500 hover:bg-indigo-400 rounded-full flex items-center justify-center transition-all shadow-lg"
-                    title="Download"
-                >
-                    <svg
-                        class="w-6 h-6 text-gray-200"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        xmlns="http://www.w3.org/2000/svg"
-                    >
-                        <path
-                            d="M8 22.0002H16C18.8284 22.0002 20.2426 22.0002 21.1213 21.1215C22 20.2429 22 18.8286 22 16.0002V15.0002C22 12.1718 22 10.7576 21.1213 9.8789C20.3529 9.11051 19.175 9.01406 17 9.00195M7 9.00195C4.82497 9.01406 3.64706 9.11051 2.87868 9.87889C2 10.7576 2 12.1718 2 15.0002L2 16.0002C2 18.8286 2 20.2429 2.87868 21.1215C3.17848 21.4213 3.54062 21.6188 4 21.749"
-                        />
-                        <path d="M12 2L12 15M12 15L9 11.5M12 15L15 11.5" stroke-linejoin="round" />
-                    </svg>
-                </button>
-
-                <button
-                    (click)="copy()"
-                    class="w-12 h-12 bg-indigo-500 hover:bg-indigo-400 rounded-full flex items-center justify-center transition-all shadow-lg"
-                    title="Copy"
-                >
-                    <svg class="w-6 h-6 text-gray-200" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            fill-rule="evenodd"
-                            clip-rule="evenodd"
-                            d="M15 1.25H10.9436C9.10583 1.24998 7.65019 1.24997 6.51098 1.40314C5.33856 1.56076 4.38961 1.89288 3.64124 2.64124C2.89288 3.38961 2.56076 4.33856 2.40314 5.51098C2.24997 6.65019 2.24998 8.10582 2.25 9.94357V16C2.25 17.8722 3.62205 19.424 5.41551 19.7047C5.55348 20.4687 5.81753 21.1208 6.34835 21.6517C6.95027 22.2536 7.70814 22.5125 8.60825 22.6335C9.47522 22.75 10.5775 22.75 11.9451 22.75H15.0549C16.4225 22.75 17.5248 22.75 18.3918 22.6335C19.2919 22.5125 20.0497 22.2536 20.6517 21.6517C21.2536 21.0497 21.5125 20.2919 21.6335 19.3918C21.75 18.5248 21.75 17.4225 21.75 16.0549V10.9451C21.75 9.57754 21.75 8.47522 21.6335 7.60825C21.5125 6.70814 21.2536 5.95027 20.6517 5.34835C20.1208 4.81753 19.4687 4.55348 18.7047 4.41551C18.424 2.62205 16.8722 1.25 15 1.25ZM17.1293 4.27117C16.8265 3.38623 15.9876 2.75 15 2.75H11C9.09318 2.75 7.73851 2.75159 6.71085 2.88976C5.70476 3.02502 5.12511 3.27869 4.7019 3.7019C4.27869 4.12511 4.02502 4.70476 3.88976 5.71085C3.75159 6.73851 3.75 8.09318 3.75 10V16C3.75 16.9876 4.38624 17.8265 5.27117 18.1293C5.24998 17.5194 5.24999 16.8297 5.25 16.0549V10.9451C5.24998 9.57754 5.24996 8.47522 5.36652 7.60825C5.48754 6.70814 5.74643 5.95027 6.34835 5.34835C6.95027 4.74643 7.70814 4.48754 8.60825 4.36652C9.47522 4.24996 10.5775 4.24998 11.9451 4.25H15.0549C15.8297 4.24999 16.5194 4.24998 17.1293 4.27117ZM7.40901 6.40901C7.68577 6.13225 8.07435 5.9518 8.80812 5.85315C9.56347 5.75159 10.5646 5.75 12 5.75H15C16.4354 5.75 17.4365 5.75159 18.1919 5.85315C18.9257 5.9518 19.3142 6.13225 19.591 6.40901C19.8678 6.68577 20.0482 7.07435 20.1469 7.80812C20.2484 8.56347 20.25 9.56458 20.25 11V16C20.25 17.4354 20.2484 18.4365 20.1469 19.1919C20.0482 19.9257 19.8678 20.3142 19.591 20.591C19.3142 20.8678 18.9257 21.0482 18.1919 21.1469C17.4365 21.2484 16.4354 21.25 15 21.25H12C10.5646 21.25 9.56347 21.2484 8.80812 21.1469C8.07435 21.0482 7.68577 20.8678 7.40901 20.591C7.13225 20.3142 6.9518 19.9257 6.85315 19.1919C6.75159 18.4365 6.75 17.4354 6.75 16V11C6.75 9.56458 6.75159 8.56347 6.85315 7.80812C6.9518 7.07435 7.13225 6.68577 7.40901 6.40901Z"
-                        />
-                    </svg>
-                </button>
-            </div>
-        </div>
+    } @else if (grid() && !edit()) {
+        <app-result [grid]="grid()" [solution]="solution()" [title]="title" [url]="url()" (onEdit)="edit.set(true)"></app-result>
     }
 </div>

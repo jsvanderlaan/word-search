@@ -8,6 +8,13 @@ export class WorkerService {
         return this._execute('generate', { words, width, height });
     }
 
+    cancel(): void {
+        if (this._worker !== null) {
+            this._worker.terminate();
+            this._worker = null;
+        }
+    }
+
     private _execute(command: string, payload: any): Promise<any> {
         const worker = this._createWorker();
 

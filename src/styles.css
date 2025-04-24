@@ -33,3 +33,8 @@ body {
     user-select: none;
     z-index: -1;
 }
+
+.selection-rectangle {
+    border-radius: 1rem;
+    padding: 0 1rem;
+}

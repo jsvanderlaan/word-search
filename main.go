@@ -439,10 +439,34 @@ func generateJS(this js.Value, p []js.Value) interface{} {
 
 	words = strings.ReplaceAll(words, "\n", ",")
 	wordsList := strings.Split(words, ",")
-	grid, _ := generate(wordsList, width, height)
+	grid, solution := generate(wordsList, width, height)
+
+	if grid == "" || solution == nil {
+		return map[string]interface{}{
+			"grid":     "",
+			"solution": []interface{}{}, // Return an empty array instead of nil,
+		}
+	}
+
+	// Convert the solution array to a JavaScript-friendly format
+	jsSolution := js.Global().Get("Array").New()
+	for _, s := range solution {
+		jsSolution.Call("push", map[string]interface{}{
+			"word": s.Word,
+			"position": map[string]interface{}{
+				"x": s.Pos.X,
+				"y": s.Pos.Y,
+				"direction": map[string]interface{}{
+					"dx": s.Pos.Dir[0],
+					"dy": s.Pos.Dir[1],
+				},
+			},
+		})
+	}
 
 	return map[string]interface{}{
-		"grid": grid,
+		"grid":     grid,
+		"solution": jsSolution,
 	}
 }
 

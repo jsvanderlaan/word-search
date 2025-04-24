@@ -2,65 +2,52 @@ import { NgClass } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { generateBackground } from './background';
-import { PdfService } from './pdf.service';
+import { ResultComponent } from './result/result.component';
+import { Solution } from './types';
 import { WorkerService } from './worker.service';
 
 @Component({
     selector: 'app-root',
-    imports: [FormsModule, NgClass],
+    imports: [FormsModule, NgClass, ResultComponent],
     templateUrl: './app.component.html',
-    styleUrl: './app.component.css',
 })
 export class AppComponent {
     private readonly workerService: WorkerService = inject(WorkerService);
-    private readonly pdfService: PdfService = inject(PdfService);
 
     readonly grid = signal<string[][] | null>(null);
-    readonly gridWords = signal<string[]>([]);
+    readonly solution = signal<Solution[]>([]);
     readonly url = computed(() => {
         const grid =
             this.grid()
                 ?.map(row => row.join(''))
                 .join(',') || '';
-        const words = this.gridWords().join(',') || '';
+        const solution = this.solution();
 
-        if (!grid || !words) {
+        if (!grid || !solution) {
             return null;
         }
         const width = this.grid()!
             .map(row => row.length)
             .reduce((a, b) => Math.max(a, b), 0);
         const height = this.grid()!.length;
+
         const params = new URLSearchParams();
-        params.set('grid', grid);
-        params.set('words', words);
-        params.set('width', width.toString());
-        params.set('height', height.toString());
+        params.set('g', grid);
+        params.set('w', width.toString());
+        params.set('h', height.toString());
+        params.set('e', this.edit() ? 'true' : 'false');
+
+        const serializedSolution = solution
+            .map(s => `${s.word}_${s.position.x}_${s.position.y}_${s.position.direction.dx}_${s.position.direction.dy}`)
+            .join('.');
+        params.set('s', serializedSolution);
 
         if (this.title) {
-            params.set('title', this.title);
+            params.set('t', this.title);
         }
 
         const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
         return url.length < 2000 ? url : null;
-    });
-    readonly shareData = computed(() => {
-        const url = this.url();
-        if (!url) {
-            return null;
-        }
-        return {
-            title: 'Word Search',
-            text: 'Check out this word search I generated!',
-            url: url,
-        };
-    });
-    readonly canShare = computed(() => {
-        const shareData = this.shareData();
-        if (!shareData) {
-            return false;
-        }
-        return navigator.canShare && navigator.canShare(shareData);
     });
 
     words: string | null = null;
@@ -68,11 +55,14 @@ export class AppComponent {
     height: number | null = null;
     title: string | null = null;
 
+    readonly edit = signal(true);
     readonly loading = signal(false);
     readonly error = signal<string | null>(null);
 
     constructor() {
-        generateBackground();
+        // on screen resize or rotate
+        window.addEventListener('resize', () => generateBackground());
+        window.addEventListener('orientationchange', () => generateBackground());
 
         // set url on url change
         effect(() => {
@@ -81,19 +71,39 @@ export class AppComponent {
                 window.history.replaceState({}, '', url);
             }
         });
+
         // get words from query params
         const urlParams = new URLSearchParams(window.location.search);
-        const words = urlParams.get('words');
-        const width = urlParams.get('width');
-        const height = urlParams.get('height');
-        const grid = urlParams.get('grid');
-        const title = urlParams.get('title');
+        const solution = urlParams.get('s');
+        const width = urlParams.get('w');
+        const height = urlParams.get('h');
+        const grid = urlParams.get('g');
+        const title = urlParams.get('t');
+        const edit = urlParams.get('e');
+
+        if (edit === 'false') {
+            this.edit.set(false);
+        } else {
+            this.edit.set(true);
+        }
         if (title) {
             this.title = decodeURIComponent(title);
         }
-
-        if (words) {
-            this.words = decodeURIComponent(words).split(',').join('\n');
+        if (solution) {
+            const parsedSolution = solution.split('.').map(entry => {
+                const [word, x, y, dx, dy] = entry.split('_');
+                return {
+                    word,
+                    position: {
+                        x: +x,
+                        y: +y,
+                        direction: { dx: +dx, dy: +dy },
+                    },
+                    found: false,
+                };
+            });
+            this.solution.set(parsedSolution);
+            this.words = parsedSolution.map((x: Solution) => x.word).join('\n');
         }
         if (width) {
             this.width = parseInt(width, 10);
@@ -103,93 +113,105 @@ export class AppComponent {
         }
         if (grid) {
             this.grid.set(grid.split(',').map(row => row.split('')));
-            this.gridWords.set(this.words?.split('\n') || []);
         } else if (this.words) {
             this.generate();
         }
     }
 
-    async generate() {
+    cancel(): void {
+        this.workerService.cancel();
+        this.loading.set(false);
+        this.error.set(null);
+        this.edit.set(true);
+    }
+
+    generate() {
         this.loading.set(true);
         this.error.set(null);
+        this.edit.set(false);
+
         if (!this.words) {
             this.loading.set(false);
             this.error.set('Please enter some words to generate a grid.');
+            this.edit.set(true);
             return;
         }
-        const wordsArray = this.words
-            .split('\n')
-            .flatMap(word => word.split(','))
-            .map(word => word.trim().toUpperCase())
-            .filter(word => word.length > 0)
-            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+        const wordsArray = this.parseWords(this.words);
+
+        // check if word is contained in another word
+        const containedWords = wordsArray.filter(word =>
+            wordsArray.some(otherWord => word !== otherWord && otherWord.includes(word))
+        );
+        if (containedWords.length > 0) {
+            this.loading.set(false);
+            this.error.set(`Some words are contained in other words. (${containedWords.join(', ')})`);
+            this.edit.set(true);
+            return;
+        }
 
         if (this.width === null) {
-            this.width = wordsArray.map(word => word.trim().length).reduce((a, b) => Math.max(a, b), 0);
+            this.width = wordsArray.map(word => word.length).reduce((a, b) => Math.max(a, b), 0);
         }
 
         if (this.height === null) {
-            this.height = wordsArray.map(word => word.trim().length).reduce((a, b) => Math.max(a, b), 0);
+            this.height = wordsArray.map(word => word.length).reduce((a, b) => Math.max(a, b), 0);
         }
 
         if (this.width < 1 || this.height < 1) {
+            this.loading.set(false);
+            this.error.set('Width and height must be greater than 0.');
+            this.edit.set(true);
             return;
         }
         if (this.width > 100 || this.height > 100) {
-            return;
-        }
-
-        try {
-            const result = await this.workerService.generate(wordsArray.join(','), this.width, this.height);
-            if (!result?.grid) {
-                this.loading.set(false);
-                this.error.set('No result found.. try a bigger grid or less words.');
-                return;
-            }
-
-            this.grid.set(
-                result?.grid
-                    .split('\n')
-                    .map((row: string) => row.split(' ').filter((row: string) => row.length > 0))
-                    .filter((row: string[]) => row.length > 0)
-            );
-        } catch (error: any) {
             this.loading.set(false);
-            this.error.set(error.message);
+            this.error.set('Width and height must be less than 100.');
+            this.edit.set(true);
             return;
         }
-        this.loading.set(false);
-        this.error.set(null);
-        this.gridWords.set(wordsArray || []);
+
+        this.workerService
+            .generate(wordsArray.join(','), this.width, this.height)
+            .then(result => {
+                if (!result?.grid) {
+                    this.loading.set(false);
+                    this.error.set('No result found. Try a bigger grid or less words.');
+                    return;
+                }
+
+                this.grid.set(
+                    result?.grid
+                        .split('\n')
+                        .map((row: string) => row.split(' ').filter((row: string) => row.length > 0))
+                        .filter((row: string[]) => row.length > 0)
+                );
+                this.loading.set(false);
+                this.error.set(null);
+                this.solution.set(
+                    result.solution
+                        .map((x: Solution) => ({ ...x, found: false }))
+                        .sort((a: Solution, b: Solution) => a.word.localeCompare(b.word, undefined, { sensitivity: 'base' })) ||
+                        []
+                );
+                this.words = wordsArray.join('\n');
+            })
+            .catch(error => {
+                this.loading.set(false);
+                this.error.set(error.message);
+                this.edit.set(true);
+            });
     }
 
-    async share() {
-        if (this.canShare()) {
-            try {
-                await navigator.share(this.shareData()!);
-            } catch (error) {
-                console.error('Error sharing:', error);
-            }
-        }
-    }
-
-    async copy() {
-        const url = this.url();
-        if (url) {
-            try {
-                await navigator.clipboard.writeText(url);
-            } catch (error) {
-                console.error('Error copying URL:', error);
-            }
-        }
-    }
-
-    async download() {
-        if (!this.grid() || !this.gridWords()) {
-            return;
-        }
-        const grid = this.grid()!;
-        const words = this.gridWords()!;
-        await this.pdfService.generatePdf(grid, words, this.title || 'Word Search', this.url() || '');
+    private parseWords(words: string): string[] {
+        return [
+            ...new Set(
+                words
+                    .split('\n')
+                    .flatMap(word => word.split(','))
+                    .map(word => word.trim().toUpperCase())
+                    .map(word => word.replace(/[^A-Z]/g, ''))
+                    .filter(word => word.length > 0)
+            ),
+        ].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
     }
 }

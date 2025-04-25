@@ -58,6 +58,8 @@
                     class="w-6 h-6 text-gray-200"
                     fill="currentColor"
                     viewBox="0 0 458.624 458.624"
+                    stroke-width="2"
+                    stroke-linecap="round"
                     stroke="currentColor"
                 >
                     <path
@@ -124,5 +126,50 @@
                 <path d="M16 2L22 8L9 21H3V15L16 2Z" />
             </svg>
         </button>
+        @if (solved()) {
+            <button
+                (click)="clear()"
+                class="w-12 h-12 bg-indigo-500 hover:bg-indigo-600 rounded-full flex items-center justify-center transition-all shadow-lg"
+                title="Clear"
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="w-6 h-6 text-gray-200"
+                    fill="currentColor"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    viewBox="0 0 1920 1920"
+                >
+                    <path
+                        d="M960 0v213.333c411.627 0 746.667 334.934 746.667 746.667S1371.627 1706.667 960 1706.667 213.333 1371.733 213.333 960c0-197.013 78.4-382.507 213.334-520.747v254.08H640V106.667H53.333V320h191.04C88.64 494.08 0 720.96 0 960c0 529.28 430.613 960 960 960s960-430.72 960-960S1489.387 0 960 0"
+                        fill-rule="evenodd"
+                    />
+                </svg>
+            </button>
+        } @else {
+            <button
+                (click)="solve()"
+                class="w-12 h-12 bg-indigo-500 hover:bg-indigo-600 rounded-full flex items-center justify-center transition-all shadow-lg"
+                title="Solve"
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="w-6 h-6 text-gray-200"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                >
+                    <path
+                        d="M15.0007 12C15.0007 13.6569 13.6576 15 12.0007 15C10.3439 15 9.00073 13.6569 9.00073 12C9.00073 10.3431 10.3439 9 12.0007 9C13.6576 9 15.0007 10.3431 15.0007 12Z"
+                    />
+                    <path
+                        d="M12.0012 5C7.52354 5 3.73326 7.94288 2.45898 12C3.73324 16.0571 7.52354 19 12.0012 19C16.4788 19 20.2691 16.0571 21.5434 12C20.2691 7.94291 16.4788 5 12.0012 5Z"
+                    />
+                </svg>
+            </button>
+        }
     </div>
 </div>

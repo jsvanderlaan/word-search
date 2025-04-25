@@ -310,6 +310,38 @@ ${this.url() ?? ''}
         return foundSolution || null;
     }
 
+    clear(): void {
+        this.solution()!.forEach(s => s.found.set(false));
+        this.removeTemp();
+        const gridContent = this.gridContent.nativeElement as HTMLElement;
+        const rectangles = gridContent.querySelectorAll('.selection-rectangle');
+
+        rectangles.forEach(rectangle => rectangle.remove());
+    }
+
+    solve(): void {
+        const solution = this.solution()!;
+
+        // Iterate through all solutions
+        solution.forEach(s => {
+            const word = s.word;
+            const start = s.position;
+            const direction = start.direction;
+
+            // Calculate the end position based on the word's length
+            const end = {
+                row: start.y + direction.dy * (word.length - 1),
+                col: start.x + direction.dx * (word.length - 1),
+            };
+
+            // Mark the word as found
+            s.found.set(true);
+
+            // Draw the rectangle around the word
+            this.drawRectangle({ row: start.y, col: start.x }, end, false);
+        });
+    }
+
     private tempSelection: HTMLDivElement | null = null;
 
     private removeTemp() {

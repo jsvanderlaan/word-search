@@ -242,13 +242,13 @@ func calculateFitAndScore(grid *Grid, word string, pos Pos) (bool, int) {
 
 		// Increase score for overlaps
 		if grid.Cells[y][x] == rune(word[i]) {
-			score += 5 // Overlap bonus
+			score += 8 // Overlap bonus
 		}
 	}
 
 	// Increase score for diagonal directions
 	if isDirDiagonal(pos.Dir) {
-		score += 5 // Diagonal bonus
+		score += 2 // Diagonal bonus
 	}
 
 	return fit, score
@@ -302,9 +302,22 @@ func generate(input []string, width, height int) (string, []Solution) {
 		currTry++
 
 		words := prepareWords(input)
-		solution := []Solution{}
+
+		// First word random
+		word := words[0]
+		pos := Pos{X: rand.Intn(width), Y: rand.Intn(height), Dir: directions[2]}
+		for {
+			if pos.X+(len(word)-1)*pos.Dir[0] >= 0 && pos.X+len(word)*pos.Dir[0] <= width &&
+				pos.Y+(len(word)-1)*pos.Dir[1] >= 0 && pos.Y+len(word)*pos.Dir[1] <= height {
+				break
+			}
+			pos = getNextPos(pos, width, height)
+		}
+
+		solution := []Solution{Solution{Word: word, Pos: pos}}
 		grid := NewGrid(width, height, solution)
-		for i := 0; i < len(words); i++ {
+
+		for i := 1; i < len(words); i++ {
 			word := words[i]
 			if len(word) > width && len(word) > height {
 				return "", nil

@@ -188,7 +188,7 @@ export class AppComponent {
         }
         if (this.width > 50 || this.height > 50) {
             this.loading.set(false);
-            this.error.set('Width and height must be less than 51.');
+            this.error.set('Width and height must be less than or equal to 50.');
             this.edit.set(true);
             return;
         }

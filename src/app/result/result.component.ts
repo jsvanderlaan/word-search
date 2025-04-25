@@ -178,6 +178,9 @@ export class ResultComponent implements AfterViewInit {
     private endCell: { row: number; col: number } | null = null;
 
     startSelection(event: MouseEvent | TouchEvent, row: number, col: number) {
+        if (this.solved()) {
+            return;
+        }
         event.preventDefault();
         this.isSelecting = true;
         this.startCell = { row, col };

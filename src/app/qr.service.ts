@@ -5,7 +5,7 @@ import { Injectable } from '@angular/core';
 })
 export class QrService {
     async generateQrCode(text: string): Promise<string> {
-        const QRCode = await import('qrcode');
+        const QRCode = (await import('qrcode')).default;
 
         return await QRCode.toDataURL(text, {
             errorCorrectionLevel: 'M',

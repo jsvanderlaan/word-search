@@ -35,7 +35,7 @@ export class AppComponent {
         params.set('g', encodeAZString(grid));
         params.set('w', width.toString());
         params.set('h', height.toString());
-        params.set('e', this.edit() ? 'true' : 'false');
+        params.set('e', this.edit() ? '1' : '0');
 
         const serializedSolution = solution
             .map(s => `${s.word}_${s.position.x}_${s.position.y}_${s.position.direction.dx}_${s.position.direction.dy}`)
@@ -79,11 +79,14 @@ export class AppComponent {
         const title = urlParams.get('t');
         const edit = urlParams.get('e');
 
-        if (edit === 'false') {
+        if (edit === '1') {
+            this.edit.set(true);
+        } else if (edit === '0') {
             this.edit.set(false);
         } else {
-            this.edit.set(true);
+            this.edit.set(!grid || !solution);
         }
+
         if (title) {
             this.title = decodeURIComponent(title);
         }

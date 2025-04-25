@@ -149,13 +149,52 @@ export class ResultComponent implements AfterViewInit {
     }
 
     async copy() {
-        const url = this.url();
-        if (url) {
-            try {
-                await navigator.clipboard.writeText(url);
-            } catch (error) {
-                console.error('Error copying URL:', error);
+        const title = this.title() || '';
+        const grid = this.grid();
+        const solution = this.solution();
+
+        if (!grid || !solution) {
+            console.error('Grid or solution is missing.');
+            return;
+        }
+
+        // Format the grid
+        const formattedGrid = grid.map(row => row.join('\t')).join('\n');
+
+        // Format the word list into columns
+        const words = solution.map(s => s.word);
+        const columns = 3; // Number of columns
+        const rows = Math.ceil(words.length / columns);
+        const formattedWords: string[] = [];
+
+        for (let row = 0; row < rows; row++) {
+            const rowWords: string[] = [];
+            for (let col = 0; col < columns; col++) {
+                const wordIndex = row + col * rows;
+                if (wordIndex < words.length) {
+                    rowWords.push(words[wordIndex]);
+                }
             }
+            formattedWords.push(rowWords.join('\t')); // Use tab for spacing
+        }
+
+        const formattedWordList = formattedWords.join('\n');
+
+        // Create the formatted text
+        const formattedText = `
+${title}
+
+${formattedGrid}
+
+${formattedWordList}
+
+${this.url() ?? ''}
+        `.trim();
+
+        try {
+            await navigator.clipboard.writeText(formattedText);
+        } catch (error) {
+            console.error('Error copying URL:', error);
         }
     }
 

@@ -1,19 +1,17 @@
-<div class="mt-4 w-full max-w-lg">
+<div class="mt-4 w-full">
     <div id="result" class="bg-white p-4 rounded-lg shadow-md text-gray-800 overflow-auto mx-auto flex flex-col">
         @if (title()) {
             <div class="text-center mb-4 font-title">
                 <h2 class="text-3xl font-bold">{{ title() }}</h2>
             </div>
         }
-        <!-- Rectangle overlay -->
-        <div #selectionOverlay class="absolute top-0 left-0 pointer-events-none z-1"></div>
         <div
             #gridContainer
-            class="relative bg-gray-100 rounded-lg overflow-hidden touch-none select-none"
-            style="width: 100%; height: 400px"
+            class="relative rounded-lg overflow-hidden touch-none select-none mx-auto"
+            attr.style="width: {{ grid()![0].length * 2 }}rem; max-width: 80vw; height: {{ grid()!.length * 2 }}rem"
         >
-            <div #gridContent class="absolute top-0 left-0" style="transform-origin: top left">
-                <table class="border-collapse font-grid mx-auto">
+            <div #gridContent class="absolute top-0 left-0 mx-auto">
+                <table class="font-grid">
                     <tbody>
                         @for (row of grid(); track row.join(','); let rowIndex = $index) {
                             <tr>
@@ -39,11 +37,10 @@
             </div>
         </div>
 
-        <div class="word-list mt-4">
-            <!-- <label for="word-list" class="block text-sm font-medium text-gray-700">Word List</label> -->
+        <div class="mt-4 mx-auto shrink">
             <ul class="font-grid columns-3 gap-4">
                 @for (s of solution(); track s.word) {
-                    <li>{{ s.word }}</li>
+                    <li [ngClass]="{ 'text-indigo-500 line-through': s.found() }">{{ s.word }}</li>
                 }
             </ul>
         </div>

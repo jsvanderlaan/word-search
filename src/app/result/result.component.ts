@@ -1,10 +1,22 @@
-import { AfterViewInit, Component, computed, ElementRef, EventEmitter, inject, input, Output, ViewChild } from '@angular/core';
+import { NgClass, NgStyle } from '@angular/common';
+import {
+    AfterViewInit,
+    Component,
+    computed,
+    effect,
+    ElementRef,
+    EventEmitter,
+    inject,
+    input,
+    Output,
+    ViewChild,
+} from '@angular/core';
 import { PdfService } from '../pdf.service';
 import { Solution } from '../types';
 
 @Component({
     selector: 'app-result',
-    imports: [],
+    imports: [NgClass, NgStyle],
     templateUrl: './result.component.html',
 })
 export class ResultComponent implements AfterViewInit {
@@ -19,6 +31,8 @@ export class ResultComponent implements AfterViewInit {
     @ViewChild('gridContent', { static: false }) gridContent!: ElementRef;
     @ViewChild('selectionOverlay', { static: false }) selectionOverlay!: ElementRef;
 
+    readonly solved = computed(() => this.solution()?.every(s => s.found()));
+
     private scale = 1;
     private lastScale = 1;
     private panX = 0;
@@ -26,7 +40,35 @@ export class ResultComponent implements AfterViewInit {
     private lastPanX = 0;
     private lastPanY = 0;
 
+    constructor() {
+        effect(async () => {
+            if (this.solved()) {
+                const confetti = await import('canvas-confetti');
+
+                confetti.default({
+                    particleCount: 500,
+                    startVelocity: 20,
+                    spread: 360,
+                    origin: { x: 0.5, y: 0.2 },
+                });
+            }
+        });
+    }
+
     ngAfterViewInit() {
+        document.addEventListener('mouseup', () => {
+            this.isSelecting = false;
+            this.removeTemp();
+            this.startCell = null;
+            this.endCell = null;
+        });
+        document.addEventListener('touchend', () => {
+            this.isSelecting = false;
+            this.removeTemp();
+            this.startCell = null;
+            this.endCell = null;
+        });
+
         const container = this.gridContainer.nativeElement;
         const content = this.gridContent.nativeElement;
 
@@ -135,56 +177,113 @@ export class ResultComponent implements AfterViewInit {
     private endCell: { row: number; col: number } | null = null;
 
     startSelection(event: MouseEvent | TouchEvent, row: number, col: number) {
-        console.log('start', row, col);
         event.preventDefault();
         this.isSelecting = true;
         this.startCell = { row, col };
     }
 
     updateSelection(event: MouseEvent | TouchEvent) {
+        if (!this.isSelecting) {
+            return;
+        }
+
         event.preventDefault();
 
         const { x, y } = this.getEventPosition(event);
         const attr = document.elementFromPoint(x, y)?.attributes;
 
-        const row = +attr!['data-row' as any].value;
-        const col = +attr!['data-col' as any].value;
+        if (!attr) {
+            return;
+        }
 
-        if (this.isSelecting && this.isValid(this.startCell, { row, col })) {
+        const dataRow = attr['data-row' as any];
+        const dataCol = attr['data-col' as any];
+
+        if (!dataCol || !dataRow) {
+            return;
+        }
+
+        const row = +dataRow.value;
+        const col = +dataCol.value;
+
+        if (this.isValid(this.startCell, { row, col })) {
             this.endCell = { row, col };
-            // Highlight selected cells (e.g., add a CSS class)
+            this.drawRectangle(this.startCell!, this.endCell, true);
         }
     }
 
     endSelection(event: MouseEvent | TouchEvent) {
         event.preventDefault();
         this.isSelecting = false;
+        this.removeTemp();
         if (this.isValid(this.startCell, this.endCell)) {
-            console.log('end');
-            this.checkWord(this.startCell, this.endCell);
-            this.drawRectangle(this.startCell!, this.endCell!);
+            const solution = this.checkWord(this.startCell, this.endCell);
+            if (solution !== null) {
+                this.drawRectangle(this.startCell!, this.endCell!, false);
+                solution.found.set(true);
+            }
         }
+
         this.startCell = null;
         this.endCell = null;
     }
 
-    checkWord(startCell: { row: number; col: number } | null, endCell: { row: number; col: number } | null) {
-        // const word = selectedCells.map(cell => this.grid()![cell.row][cell.col]).join('');
-        // if (this.solution()!.some(s => s.word === word)) {
-        //     console.log(`Found word: ${word}`);
-        //     // Mark the word as found
-        // }
+    checkWord(startCell: { row: number; col: number } | null, endCell: { row: number; col: number } | null): Solution | null {
+        if (!startCell || !endCell || !this.grid() || !this.solution()) {
+            return null;
+        }
+
+        const grid = this.grid()!;
+        const solution = this.solution()!;
+
+        // Determine the direction of the selection
+        const deltaRow = endCell.row - startCell.row;
+        const deltaCol = endCell.col - startCell.col;
+
+        // Normalize the direction to get the step values
+        const stepRow = deltaRow === 0 ? 0 : deltaRow / Math.abs(deltaRow);
+        const stepCol = deltaCol === 0 ? 0 : deltaCol / Math.abs(deltaCol);
+
+        // Collect the selected word
+        const selectedWord: string[] = [];
+        let currentRow = startCell.row;
+        let currentCol = startCell.col;
+
+        while (true) {
+            selectedWord.push(grid[currentRow][currentCol]);
+
+            if (currentRow === endCell.row && currentCol === endCell.col) {
+                break;
+            }
+
+            currentRow += stepRow;
+            currentCol += stepCol;
+        }
+
+        const word = selectedWord.join('');
+
+        // Check if the word matches any solution
+        const foundSolution = solution.find(s => s.word === word || s.word === word.split('').reverse().join(''));
+        return foundSolution || null;
     }
 
-    private drawRectangle(startCell: { row: number; col: number }, endCell: { row: number; col: number }) {
-        // const overlay = this.selectionOverlay.nativeElement as HTMLElement;
+    private tempSelection: HTMLDivElement | null = null;
+
+    private removeTemp() {
+        const gridContent = this.gridContent.nativeElement as HTMLElement;
+        if (this.tempSelection !== null) {
+            gridContent.removeChild(this.tempSelection);
+            this.tempSelection = null;
+        }
+    }
+
+    private drawRectangle(startCell: { row: number; col: number }, endCell: { row: number; col: number }, temp: boolean) {
+        this.removeTemp();
         const gridContent = this.gridContent.nativeElement as HTMLElement;
 
-        // Get the dimensions of the grid cells
         const cellWidth = gridContent.querySelector('td')!.clientWidth;
         const cellHeight = gridContent.querySelector('td')!.clientHeight;
 
-        // Calculate the center of the starting and ending cells
         const startX = startCell.col * cellWidth + cellWidth / 2;
         const startY = startCell.row * cellHeight + cellHeight / 2;
         const endX = endCell.col * cellWidth + cellWidth / 2;
@@ -204,16 +303,9 @@ export class ResultComponent implements AfterViewInit {
             offsetY = factor * (cellWidth / 2) * (startY > endY ? 1 : -1);
         }
 
-        // Calculate the distance (width of the rectangle)
         const distance = Math.hypot(endX - startX, endY - startY);
-
-        // Calculate the angle for rotation
         const angle = Math.atan2(endY - startY, endX - startX) * (180 / Math.PI);
 
-        // Clear any existing rectangles
-        // overlay.innerHTML = '';
-
-        // Create a new rectangle
         const rectangle = document.createElement('div');
         rectangle.classList.add('selection-rectangle');
         rectangle.style.position = 'absolute';
@@ -226,14 +318,20 @@ export class ResultComponent implements AfterViewInit {
         rectangle.style.transform = `translate(${startX + offsetX}px, ${startY + offsetY - cellHeight / 2}px) rotate(${angle}deg)`;
         rectangle.style.top = '0';
         rectangle.style.left = '0';
-        // rectangle.style['z-index' as any] = '1';
 
-        // Add the rectangle to the overlay
+        if (temp) {
+            this.tempSelection = rectangle;
+        }
+
         gridContent.appendChild(rectangle);
     }
 
     private isValid(startCell: { row: number; col: number } | null, endCell: { row: number; col: number } | null): boolean {
         if (startCell === null || endCell === null) {
+            return false;
+        }
+
+        if (startCell.col === endCell.col && startCell.row === endCell.row) {
             return false;
         }
 

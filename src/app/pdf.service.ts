@@ -1,6 +1,4 @@
 import { Injectable } from '@angular/core';
-import fontkit from '@pdf-lib/fontkit';
-import { PDFDocument, rgb } from 'pdf-lib';
 import { QrService } from './qr.service';
 
 @Injectable({
@@ -8,9 +6,14 @@ import { QrService } from './qr.service';
 })
 export class PdfService {
     constructor(private qrService: QrService) {}
+
     async generatePdf(grid: string[][], words: string[], title: string, url: string) {
+        const { PDFDocument, rgb } = await import('pdf-lib');
+        const fontkit = (await import('@pdf-lib/fontkit')).default;
+
         // sort words alphabetically
         words.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
         const padding = 100; // Padding around the grid
         const pdfDoc = await PDFDocument.create();
         pdfDoc.registerFontkit(fontkit);

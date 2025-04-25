@@ -29,12 +29,15 @@ function createRandomCharacter(fontColor: string, selectedFont: string) {
     char.style.color = fontColor;
     char.style.fontFamily = selectedFont;
 
+    const w = Math.max(document.body.clientWidth, window.innerWidth);
+    const h = Math.max(document.body.clientHeight, window.innerHeight);
+
     let x,
         y,
         attempts = 0;
     do {
-        x = generateRandom(0, window.innerWidth - size - 30);
-        y = generateRandom(0, window.innerHeight - size - 30);
+        x = generateRandom(0, w - size - 30);
+        y = generateRandom(0, h - size - 30);
         attempts++;
     } while (checkOverlap(x, y, size) && attempts < maxAttempts);
 

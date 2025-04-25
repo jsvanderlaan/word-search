@@ -99,7 +99,7 @@ export class AppComponent {
                         y: +y,
                         direction: { dx: +dx, dy: +dy },
                     },
-                    found: false,
+                    found: signal(false),
                 };
             });
             this.solution.set(parsedSolution);
@@ -116,6 +116,10 @@ export class AppComponent {
         } else if (this.words) {
             this.generate();
         }
+    }
+
+    ngAfterViewInit() {
+        generateBackground();
     }
 
     cancel(): void {
@@ -189,7 +193,7 @@ export class AppComponent {
                 this.error.set(null);
                 this.solution.set(
                     result.solution
-                        .map((x: Solution) => ({ ...x, found: false }))
+                        .map((x: Solution) => ({ ...x, found: signal(false) }))
                         .sort((a: Solution, b: Solution) => a.word.localeCompare(b.word, undefined, { sensitivity: 'base' })) ||
                         []
                 );

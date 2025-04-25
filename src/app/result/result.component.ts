@@ -1,4 +1,4 @@
-import { NgClass, NgStyle } from '@angular/common';
+import { NgClass } from '@angular/common';
 import {
     AfterViewInit,
     Component,
@@ -16,7 +16,7 @@ import { Solution } from '../types';
 
 @Component({
     selector: 'app-result',
-    imports: [NgClass, NgStyle],
+    imports: [NgClass],
     templateUrl: './result.component.html',
 })
 export class ResultComponent implements AfterViewInit {
@@ -76,6 +76,7 @@ export class ResultComponent implements AfterViewInit {
 
         container.addEventListener('touchstart', (event: TouchEvent) => {
             if (event.touches.length === 2) {
+                this.removeTemp();
                 startTouches = event.touches;
                 this.lastScale = this.scale;
                 this.lastPanX = this.panX;
@@ -124,8 +125,8 @@ export class ResultComponent implements AfterViewInit {
             return null;
         }
         return {
-            title: 'Word Search',
-            text: 'Check out this word search I generated!',
+            title: this.title() || 'Word Search',
+            text: 'Check out this word search I created!',
             url: url,
         };
     });
@@ -339,7 +340,7 @@ export class ResultComponent implements AfterViewInit {
             return true;
         }
 
-        if (startCell.col === endCell.col && startCell.row !== endCell.col) {
+        if (startCell.col === endCell.col && startCell.row !== endCell.row) {
             return true;
         }
 

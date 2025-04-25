@@ -24,7 +24,7 @@ export class AppComponent {
         const solution = this.solution();
 
         if (!grid || !solution) {
-            return null;
+            return `${window.location.origin}${window.location.pathname}`;
         }
         const width = this.grid()!
             .map(row => row.length)
@@ -47,7 +47,7 @@ export class AppComponent {
         }
 
         const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-        return url.length < 2000 ? url : null;
+        return url.length < 2000 ? url : `${window.location.origin}${window.location.pathname}`;
     });
 
     words: string | null = null;
@@ -129,6 +129,15 @@ export class AppComponent {
         this.edit.set(true);
     }
 
+    clear() {
+        this.words = null;
+        this.width = null;
+        this.height = null;
+        this.title = null;
+        this.grid.set(null);
+        this.solution.set([]);
+    }
+
     generate() {
         this.loading.set(true);
         this.error.set(null);
@@ -136,7 +145,7 @@ export class AppComponent {
 
         if (!this.words) {
             this.loading.set(false);
-            this.error.set('Please enter some words to generate a grid.');
+            this.error.set('No words entered.');
             this.edit.set(true);
             return;
         }
@@ -180,6 +189,7 @@ export class AppComponent {
                 if (!result?.grid) {
                     this.loading.set(false);
                     this.error.set('No result found. Try a bigger grid or less words.');
+                    this.edit.set(true);
                     return;
                 }
 

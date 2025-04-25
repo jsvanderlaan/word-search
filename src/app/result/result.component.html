@@ -38,7 +38,7 @@
         </div>
 
         <div class="mt-4 mx-auto shrink">
-            <ul class="font-grid columns-3 gap-4">
+            <ul class="font-grid gap-4" [ngClass]="'columns-' + ((solution()?.length ?? 0) < 3 ? solution()?.length : 3)">
                 @for (s of solution(); track s.word) {
                     <li [ngClass]="{ 'text-indigo-500 line-through': s.found() }">{{ s.word }}</li>
                 }

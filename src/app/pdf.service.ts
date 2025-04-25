@@ -73,7 +73,7 @@ export class PdfService {
         });
 
         // Draw the word list
-        let fontSize = Math.min(cellFontSize, 14); // Start with a larger font size for the word list
+        let fontSize = Math.max(Math.min(cellFontSize, 14), 6); // Start with a larger font size for the word list
 
         while (fontSize > 5) {
             const lineHeight = fontMono.heightAtSize(fontSize) + 10; // Line height for the word list
@@ -124,8 +124,11 @@ export class PdfService {
                     color: rgb(0.3, 0.3, 0.3),
                 });
             });
+            break;
+        }
 
-            // Draw the QR code
+        // Draw the QR code
+        if (url) {
             const qrCodeSize = 60; // Size of the QR code
             const qrCodeX = (page.getWidth() - qrCodeSize) / 2; // Position the QR code at the bottom right corner
             const qrCodeY = padding / 2; // Position the QR code at the bottom right corner
@@ -138,11 +141,10 @@ export class PdfService {
                 width: qrCodeDims.width,
                 height: qrCodeDims.height,
             });
-
-            const pdfBytes = await pdfDoc.save();
-            this.downloadPDF(pdfBytes, `${title}.pdf`);
-            break;
         }
+
+        const pdfBytes = await pdfDoc.save();
+        this.downloadPDF(pdfBytes, `${title}.pdf`);
     }
 
     // Utility function to download the PDF

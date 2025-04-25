@@ -36,8 +36,8 @@ function createRandomCharacter(fontColor: string, selectedFont: string) {
         y,
         attempts = 0;
     do {
-        x = generateRandom(0, w - size - 30);
-        y = generateRandom(0, h - size - 30);
+        x = generateRandom(0, w - size * 2);
+        y = generateRandom(0, h - size * 2);
         attempts++;
     } while (checkOverlap(x, y, size) && attempts < maxAttempts);
 

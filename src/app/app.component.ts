@@ -2,6 +2,7 @@ import { NgClass } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { generateBackground } from './background';
+import { decodeAZString, encodeAZString } from './grid-encode';
 import { ResultComponent } from './result/result.component';
 import { Solution } from './types';
 import { WorkerService } from './worker.service';
@@ -20,11 +21,10 @@ export class AppComponent {
         const grid =
             this.grid()
                 ?.map(row => row.join(''))
-                .join(',') || '';
+                .join('') || '';
         const solution = this.solution();
-
         if (!grid || !solution) {
-            return `${window.location.origin}${window.location.pathname}`;
+            return null;
         }
         const width = this.grid()!
             .map(row => row.length)
@@ -32,7 +32,7 @@ export class AppComponent {
         const height = this.grid()!.length;
 
         const params = new URLSearchParams();
-        params.set('g', grid);
+        params.set('g', encodeAZString(grid));
         params.set('w', width.toString());
         params.set('h', height.toString());
         params.set('e', this.edit() ? 'true' : 'false');
@@ -47,7 +47,7 @@ export class AppComponent {
         }
 
         const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-        return url.length < 2000 ? url : `${window.location.origin}${window.location.pathname}`;
+        return url.length < 2000 ? url : null;
     });
 
     words: string | null = null;
@@ -67,9 +67,7 @@ export class AppComponent {
         // set url on url change
         effect(() => {
             const url = this.url();
-            if (url !== null) {
-                window.history.replaceState({}, '', url);
-            }
+            window.history.replaceState({}, '', url ?? `${window.location.origin}${window.location.pathname}`);
         });
 
         // get words from query params
@@ -111,8 +109,15 @@ export class AppComponent {
         if (height) {
             this.height = parseInt(height, 10);
         }
-        if (grid) {
-            this.grid.set(grid.split(',').map(row => row.split('')));
+        if (grid && this.width && this.height) {
+            const str = decodeAZString(grid, this.width * this.height);
+            const g: string[][] = [];
+            for (let i = 0; i < this.height; i++) {
+                const start = i * this.width;
+                const end = start + this.width;
+                g.push(str.slice(start, end).split(''));
+            }
+            this.grid.set(g);
         } else if (this.words) {
             this.generate();
         }
@@ -151,7 +156,12 @@ export class AppComponent {
         }
         const wordsArray = this.parseWords(this.words);
 
-        // check if word is contained in another word
+        if (wordsArray.some(w => w.length < 2)) {
+            this.loading.set(false);
+            this.error.set('All words must at least contain two characters.');
+            this.edit.set(true);
+        }
+
         const containedWords = wordsArray.filter(word =>
             wordsArray.some(otherWord => word !== otherWord && otherWord.includes(word))
         );
@@ -170,15 +180,15 @@ export class AppComponent {
             this.height = wordsArray.map(word => word.length).reduce((a, b) => Math.max(a, b), 0);
         }
 
-        if (this.width < 1 || this.height < 1) {
+        if (this.width < 2 || this.height < 2) {
             this.loading.set(false);
-            this.error.set('Width and height must be greater than 0.');
+            this.error.set('Width and height must be greater than 1.');
             this.edit.set(true);
             return;
         }
-        if (this.width > 100 || this.height > 100) {
+        if (this.width > 50 || this.height > 50) {
             this.loading.set(false);
-            this.error.set('Width and height must be less than 100.');
+            this.error.set('Width and height must be less than 51.');
             this.edit.set(true);
             return;
         }

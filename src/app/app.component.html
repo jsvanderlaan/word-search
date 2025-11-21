@@ -3,12 +3,12 @@
     <h2 class="text-md font-grid text-indigo-400 mb-4">jurre.dev</h2>
 
     @if (edit()) {
-        <!-- Input Field -->
         <div class="w-full max-w-lg">
             <label for="words" class="block text-sm font-medium text-gray-700">Words</label>
             <textarea
                 id="words"
                 type="text"
+                autofocus
                 [(ngModel)]="words"
                 placeholder="e.g. apple, banana, cherry"
                 class="w-full h-64 font-grid px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 bg-white"
@@ -44,7 +44,6 @@
             </div>
         </div>
 
-        <!-- title input -->
         <div class="w-full max-w-lg mt-4">
             <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
             <input

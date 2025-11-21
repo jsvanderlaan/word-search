@@ -32,6 +32,12 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 # Copy the rest of the application source code into the container
 COPY . .
 
+# Ensure the WebAssembly artifact built in the Go stage is available
+# to the Node/Angular build. The go-builder stage produces
+# /app/src/assets/main.wasm; copy it into this stage before building
+# so it gets bundled into the Angular output.
+COPY --from=go-builder /app/src/assets/main.wasm ./src/assets/main.wasm
+
 # Build the Angular application
 RUN npm run build:angular
 

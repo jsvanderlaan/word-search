@@ -1,3 +1,6 @@
+ARG NODE_VERSION=24.7.0-alpine
+ARG NGINX_VERSION=alpine3.22
+
 # =========================================
 # Stage 0: Build the GO WebAssembly Module
 # =========================================
@@ -13,8 +16,6 @@ RUN env GOOS=js GOARCH=wasm go build -o ./src/assets/main.wasm
 # =========================================
 # Stage 1: Build the Angular Application
 # =========================================
-ARG NODE_VERSION=24.7.0-alpine
-ARG NGINX_VERSION=alpine3.22
 
 # Use a lightweight Node.js image for building (customizable via ARG)
 FROM node:${NODE_VERSION} AS builder

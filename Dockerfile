@@ -8,7 +8,7 @@ FROM golang:1.24.2 AS go-builder
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+COPY go.mod ./
 RUN go mod download
 COPY . .
 RUN env GOOS=js GOARCH=wasm go build -o ./src/assets/main.wasm

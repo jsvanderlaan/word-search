@@ -42,4 +42,4 @@ testem.log
 Thumbs.db
 
 # WebAssembly build output
-/src/assets/main.wasm
+src/assets/main.wasm

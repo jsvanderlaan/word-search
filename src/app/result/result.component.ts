@@ -1,4 +1,5 @@
 import { NgClass } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import {
     AfterViewInit,
     Component,
@@ -9,6 +10,7 @@ import {
     inject,
     input,
     Output,
+    signal,
     ViewChild,
 } from '@angular/core';
 import { PdfService } from '../pdf.service';
@@ -20,11 +22,13 @@ import { Solution } from '../types';
     templateUrl: './result.component.html',
 })
 export class ResultComponent implements AfterViewInit {
+    private readonly httpClient = inject(HttpClient);
     private readonly pdfService = inject(PdfService);
     readonly title = input<string | null>('');
     readonly grid = input<string[][] | null>([]);
     readonly solution = input<Solution[] | null>([]);
     readonly url = input<string | null>(null);
+    readonly shortUrl = signal<string | null>(null);
     @Output() readonly onEdit = new EventEmitter<void>();
 
     @ViewChild('gridContainer', { static: false }) gridContainer!: ElementRef;
@@ -117,17 +121,25 @@ export class ResultComponent implements AfterViewInit {
         container.addEventListener('touchend', () => {
             startTouches = null;
         });
+
+        const title = this.title();
+        const titlePostfix = title && title.length < 10 ? title.replace(/\s+/g, '-').toLowerCase() : '';
+        const prefix = 'wordsearch' + (titlePostfix ? `-${titlePostfix}` : '');
+        this.httpClient.post('https://tiny.jurre.dev/add-api', { url: this.url(), prefix: prefix }).subscribe(result => {
+            this.shortUrl.set(`https://tiny.jurre.dev/${(result as any).key}`);
+        });
     }
 
     readonly shareData = computed(() => {
+        const shortUrl = this.shortUrl();
         const url = this.url();
-        if (!url) {
+        if (!url && !shortUrl) {
             return null;
         }
         return {
             title: this.title() || 'Word Search',
             text: 'Check out this word search I created!',
-            url: url,
+            url: shortUrl || url || '',
         };
     });
     readonly canShare = computed(() => {
@@ -188,7 +200,7 @@ ${formattedGrid}
 
 ${formattedWordList}
 
-${this.url() ?? ''}
+${this.shortUrl() || this.url() || ''}
         `.trim();
 
         try {
@@ -208,7 +220,7 @@ ${this.url() ?? ''}
             grid,
             solution.map(x => x.word),
             this.title() || 'Word Search',
-            this.url() || ''
+            this.shortUrl() || this.url() || ''
         );
     }
 
